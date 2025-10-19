@@ -4,12 +4,13 @@ import pandas as pd
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-import seaborn as sns 
+import seaborn as sns
 
 # --- Page Configuration ---
 st.set_page_config(
     page_title="DataCanvas: Smart SQLite Visualizer",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 # --- Helper Functions ---
@@ -45,18 +46,25 @@ def get_table_data(_conn, table_name):
         st.error(f"An error occurred while fetching data: {e}")
         return pd.DataFrame()
 
-# --- Application Title ---
+# --- Main Application ---
 st.title("DataCanvas 🎨: Smart SQLite Visualizer")
-st.markdown("Welcome! Upload your SQLite database file (`.db` or `.sqlite`) to begin exploring.")
 
-# --- File Uploader ---
-uploaded_file = st.file_uploader(
-    "Choose a SQLite database file",
-    type=["sqlite", "db"]
-)
+# --- Sidebar ---
+with st.sidebar:
+    st.header("Upload & Explore")
+    uploaded_file = st.file_uploader(
+        "Choose a SQLite database file",
+        type=["sqlite", "db"]
+    )
+    st.info("Upload your SQLite database to automatically generate insights and visualizations.")
 
 # --- Main Logic ---
-if uploaded_file is not None:
+if uploaded_file is None:
+    st.info("👋 Welcome to DataCanvas! Please upload a database file from the sidebar to get started.")
+    st.image("https://placehold.co/800x300/F0F2F6/4F8BF9?text=Upload+a+Database+to+Begin&font=inter", use_column_width=True)
+
+else:
+    # Save uploaded file to a temporary location
     temp_dir = "temp_data"
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)
@@ -70,24 +78,28 @@ if uploaded_file is not None:
     conn = get_db_connection(temp_db_path)
 
     if conn:
-        st.sidebar.title("Database Schema")
-        table_names = get_tables(conn)
-        
-        if not table_names:
-            st.warning("This database does not contain any tables.")
-        else:
-            selected_table = st.sidebar.selectbox("Select a table", table_names)
-            st.sidebar.info(f"Current table: **{selected_table}**")
+        with st.sidebar:
+            st.subheader("Database Schema")
+            table_names = get_tables(conn)
+            
+            if not table_names:
+                st.warning("This database does not contain any tables.")
+            else:
+                selected_table = st.selectbox("Select a table", table_names)
+                st.info(f"Current table: **{selected_table}**")
 
+        if 'selected_table' in locals() and selected_table:
             df_full = get_table_data(conn, selected_table)
 
             if not df_full.empty:
-                # --- 1. Display Table Preview ---
                 st.subheader(f"Preview of `{selected_table}`")
                 st.dataframe(df_full.head(100))
 
-                # --- 2. Automated Data Profiling ---
-                with st.expander("📊 Automated Data Profile", expanded=False):
+                # --- Tabbed Interface for Analysis ---
+                tab1, tab2, tab3 = st.tabs(["📊 Data Profile", "💡 Single Column Analysis", "🔗 Correlation Analysis"])
+
+                # --- Tab 1: Automated Data Profiling ---
+                with tab1:
                     st.markdown(f"### Profile for `{selected_table}` Table")
                     col1, col2 = st.columns(2)
                     col1.metric("Number of Rows", f"{df_full.shape[0]:,}")
@@ -102,11 +114,9 @@ if uploaded_file is not None:
                     numeric_stats = df_full.describe().transpose()
                     st.dataframe(numeric_stats, width='stretch')
 
-                # --- 3. Smart Visualizations ---
-                st.subheader("💡 Smart Visualizations")
-                
-                # Univariate Analysis
-                with st.expander("Analyze a Single Column's Distribution", expanded=True):
+                # --- Tab 2: Univariate Analysis ---
+                with tab2:
+                    st.markdown("### Analyze a Single Column's Distribution")
                     all_columns = df_full.columns.tolist()
                     column_to_visualize = st.selectbox(
                         "Select a column to visualize", 
@@ -122,6 +132,7 @@ if uploaded_file is not None:
                             st.markdown(f"**Distribution of `{column_to_visualize}` (Histogram)**")
                             fig, ax = plt.subplots()
                             ax.hist(column_data.dropna(), bins='auto', edgecolor='black')
+                            ax.set_title(f"Distribution of {column_to_visualize}")
                             ax.set_xlabel(column_to_visualize)
                             ax.set_ylabel("Frequency")
                             st.pyplot(fig)
@@ -135,10 +146,10 @@ if uploaded_file is not None:
                         else:
                             st.info(f"Column `{column_to_visualize}` is categorical but has too many unique values for a bar chart ( > 25).")
 
-                # --- 4. Correlation Analysis (NEW) ---
-                with st.expander("Analyze Relationships Between Columns (Bivariate Analysis)", expanded=True):
-                    st.markdown("#### Correlation Heatmap")
-                    st.markdown("A heatmap shows how strongly numerical columns are related to each other. Values close to 1 (dark red) mean a strong positive correlation, and values close to -1 (dark blue) mean a strong negative correlation.")
+                # --- Tab 3: Bivariate Analysis ---
+                with tab3:
+                    st.markdown("### Analyze Relationships Between Columns")
+                    st.markdown("A heatmap shows how strongly numerical columns are related. Values close to 1 (dark red) mean a strong positive correlation, and values close to -1 (dark blue) mean a strong negative correlation.")
 
                     numeric_cols = df_full.select_dtypes(include=np.number).columns.tolist()
                     
@@ -149,25 +160,26 @@ if uploaded_file is not None:
                         
                         fig, ax = plt.subplots(figsize=(10, 8))
                         sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap="coolwarm", ax=ax)
+                        ax.set_title(f"Correlation Matrix for `{selected_table}`")
                         ax.tick_params(axis='x', rotation=45)
                         st.pyplot(fig)
                         plt.close(fig)
 
                 st.divider()
 
-                # --- 5. Custom SQL Query Runner ---
-                st.subheader("Run a Custom SQL Query")
-                default_query = f'SELECT * FROM "{selected_table}";'
-                query_text = st.text_area("SQL Query", value=default_query, height=150)
-                
-                if st.button("Run Query"):
-                    if query_text:
-                        try:
-                            query_result_df = pd.read_sql_query(query_text, conn)
-                            st.success("Query executed successfully!")
-                            st.dataframe(query_result_df)
-                        except Exception as e:
-                            st.error(f"Error executing query: {e}")
-                    else:
-                        st.warning("Please enter a query to run.")
+                # --- Custom SQL Query Runner ---
+                with st.expander("🚀 Run a Custom SQL Query"):
+                    default_query = f'SELECT * FROM "{selected_table}";'
+                    query_text = st.text_area("SQL Query", value=default_query, height=150)
+                    
+                    if st.button("Run Query"):
+                        if query_text:
+                            try:
+                                query_result_df = pd.read_sql_query(query_text, conn)
+                                st.success("Query executed successfully!")
+                                st.dataframe(query_result_df)
+                            except Exception as e:
+                                st.error(f"Error executing query: {e}")
+                        else:
+                            st.warning("Please enter a query to run.")
 
