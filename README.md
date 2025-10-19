@@ -2,7 +2,6 @@
 
 DataCanvas is a Streamlit app that lets you upload an SQLite database, explore its schema, run custom SQL, and auto-generate profiles, visualizations, and plain‑English insights.
 
-![DataCanvas](logo.png)
 
 ## Features
 
@@ -70,16 +69,6 @@ Your browser should open automatically. If not, visit the URL shown in the termi
 	 - Bivariate Analysis: correlation heatmap and box plots
 	 - Automated Insights: plain‑English highlights
 4) Optional: open “Run a Custom SQL Query” to execute your own SQL
-
-## Project structure
-
-```
-.
-├── app.py            # Streamlit app entry point
-├── README.md         # You are here
-├── requirements.txt  # Python dependencies
-└── temp_data/        # Temporary storage for uploaded DBs
-```
 
 ## Troubleshooting
 
