@@ -96,7 +96,7 @@ else:
                 st.dataframe(df_full.head(100))
 
                 # --- Tabbed Interface for Analysis ---
-                tab1, tab2, tab3 = st.tabs(["📊 Data Profile", "💡 Single Column Analysis", "🔗 Correlation Analysis"])
+                tab1, tab2, tab3 = st.tabs(["📊 Data Profile", "💡 Single Column Analysis", "🔗 Bivariate Analysis"])
 
                 # --- Tab 1: Automated Data Profiling ---
                 with tab1:
@@ -149,7 +149,10 @@ else:
                 # --- Tab 3: Bivariate Analysis ---
                 with tab3:
                     st.markdown("### Analyze Relationships Between Columns")
-                    st.markdown("A heatmap shows how strongly numerical columns are related. Values close to 1 (dark red) mean a strong positive correlation, and values close to -1 (dark blue) mean a strong negative correlation.")
+                    
+                    # --- Correlation Heatmap ---
+                    st.markdown("#### Correlation Heatmap (Numerical vs. Numerical)")
+                    st.markdown("A heatmap shows how strongly numerical columns are related. Values close to 1 mean a strong positive correlation, and values close to -1 mean a strong negative correlation.")
 
                     numeric_cols = df_full.select_dtypes(include=np.number).columns.tolist()
                     
@@ -164,6 +167,32 @@ else:
                         ax.tick_params(axis='x', rotation=45)
                         st.pyplot(fig)
                         plt.close(fig)
+
+                    st.divider()
+
+                    # --- Box Plot ---
+                    st.markdown("#### Distribution Analysis (Numerical vs. Categorical)")
+                    st.markdown("A box plot helps visualize the distribution of a numerical value across different categories.")
+                    
+                    categorical_cols = df_full.select_dtypes(include=['object', 'category']).columns.tolist()
+                    
+                    if len(numeric_cols) < 1 or len(categorical_cols) < 1:
+                        st.info("Box plot requires at least one numerical and one categorical column.")
+                    else:
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            cat_col = st.selectbox("Select a categorical column", categorical_cols, index=None, placeholder="Choose a category...")
+                        with col2:
+                            num_col = st.selectbox("Select a numerical column", numeric_cols, index=None, placeholder="Choose a value...")
+
+                        if cat_col and num_col:
+                            fig, ax = plt.subplots()
+                            sns.boxplot(data=df_full, x=cat_col, y=num_col, ax=ax)
+                            ax.set_title(f"Distribution of {num_col} by {cat_col}")
+                            ax.tick_params(axis='x', rotation=45)
+                            st.pyplot(fig)
+                            plt.close(fig)
+
 
                 st.divider()
 
