@@ -36,7 +36,7 @@ def get_tables(_conn):
         return []
 
 @st.cache_data
-def get_table_data(_conn, table_name):
+def get_table__data(_conn, table_name):
     """Fetches all data from a specific table."""
     query = f'SELECT * FROM "{table_name}";'
     try:
@@ -89,14 +89,14 @@ else:
                 st.info(f"Current table: **{selected_table}**")
 
         if 'selected_table' in locals() and selected_table:
-            df_full = get_table_data(conn, selected_table)
+            df_full = get_table__data(conn, selected_table)
 
             if not df_full.empty:
                 st.subheader(f"Preview of `{selected_table}`")
                 st.dataframe(df_full.head(100))
 
                 # --- Tabbed Interface for Analysis ---
-                tab1, tab2, tab3 = st.tabs(["📊 Data Profile", "💡 Single Column Analysis", "🔗 Bivariate Analysis"])
+                tab1, tab2, tab3, tab4 = st.tabs(["📊 Data Profile", "💡 Single Column Analysis", "🔗 Bivariate Analysis", "🧠 Automated Insights"])
 
                 # --- Tab 1: Automated Data Profiling ---
                 with tab1:
@@ -150,17 +150,13 @@ else:
                 with tab3:
                     st.markdown("### Analyze Relationships Between Columns")
                     
-                    # --- Correlation Heatmap ---
                     st.markdown("#### Correlation Heatmap (Numerical vs. Numerical)")
-                    st.markdown("A heatmap shows how strongly numerical columns are related. Values close to 1 mean a strong positive correlation, and values close to -1 mean a strong negative correlation.")
-
                     numeric_cols = df_full.select_dtypes(include=np.number).columns.tolist()
                     
                     if len(numeric_cols) < 2:
                         st.info("Not enough numerical columns (at least 2 required) to generate a correlation heatmap.")
                     else:
                         corr_matrix = df_full[numeric_cols].corr()
-                        
                         fig, ax = plt.subplots(figsize=(10, 8))
                         sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap="coolwarm", ax=ax)
                         ax.set_title(f"Correlation Matrix for `{selected_table}`")
@@ -170,10 +166,7 @@ else:
 
                     st.divider()
 
-                    # --- Box Plot ---
                     st.markdown("#### Distribution Analysis (Numerical vs. Categorical)")
-                    st.markdown("A box plot helps visualize the distribution of a numerical value across different categories.")
-                    
                     categorical_cols = df_full.select_dtypes(include=['object', 'category']).columns.tolist()
                     
                     if len(numeric_cols) < 1 or len(categorical_cols) < 1:
@@ -192,6 +185,68 @@ else:
                             ax.tick_params(axis='x', rotation=45)
                             st.pyplot(fig)
                             plt.close(fig)
+                
+                # --- Tab 4: Automated Insights ---
+                with tab4:
+                    st.markdown("### Key Insights & Observations")
+                    
+                    # 1. High Correlation Insight
+                    st.subheader("📈 Correlation Insights")
+                    if 'corr_matrix' in locals() and not corr_matrix.empty:
+                        # Unstack the matrix to easily find max correlation
+                        corr_pairs = corr_matrix.unstack()
+                        # Sort pairs
+                        sorted_pairs = corr_pairs.sort_values(kind="quicksort", ascending=False)
+                        # Remove self-correlations (where value is 1.0)
+                        non_self_corr = sorted_pairs[sorted_pairs != 1.0]
+                        
+                        if not non_self_corr.empty:
+                            highest_corr_pair = non_self_corr.head(1)
+                            col1, col2 = highest_corr_pair.index[0]
+                            corr_value = highest_corr_pair.values[0]
+                            
+                            if abs(corr_value) > 0.7:
+                                st.success(f"**Strong Correlation Found:** `{col1}` and `{col2}` have a strong correlation of **{corr_value:.2f}**. This suggests a significant relationship worth exploring further.")
+                            elif abs(corr_value) > 0.5:
+                                st.info(f"**Moderate Correlation Found:** `{col1}` and `{col2}` have a moderate correlation of **{corr_value:.2f}**.")
+                        else:
+                            st.info("No significant correlations found between numerical columns.")
+                    else:
+                        st.info("Correlation analysis requires at least two numerical columns.")
+
+                    # 2. Missing Values Insight
+                    st.subheader("🗑️ Missing Data Insights")
+                    total_rows = len(df_full)
+                    missing_summary = df_full.isnull().sum()
+                    missing_summary = missing_summary[missing_summary > 0] # Filter columns with missing data
+                    
+                    if not missing_summary.empty:
+                        most_missing_col = missing_summary.idxmax()
+                        missing_count = missing_summary.max()
+                        missing_percentage = (missing_count / total_rows) * 100
+                        
+                        if missing_percentage > 30:
+                            st.warning(f"**High Missing Data:** The column `{most_missing_col}` has **{missing_percentage:.1f}%** missing values ({missing_count} rows). This could impact analysis and model accuracy.")
+                        else:
+                            st.info(f"The column with the most missing values is `{most_missing_col}` with **{missing_percentage:.1f}%** missing data.")
+                    else:
+                        st.success("🎉 **Great News!** No missing values were found in this table.")
+
+                    # 3. High Cardinality Insight
+                    st.subheader("🇇 Cardinality Insights")
+                    if 'categorical_cols' in locals() and categorical_cols:
+                        high_cardinality_cols = []
+                        for col in categorical_cols:
+                            unique_count = df_full[col].nunique()
+                            if unique_count > 50: # Threshold for "high" cardinality
+                                high_cardinality_cols.append(f"`{col}` ({unique_count} unique values)")
+                        
+                        if high_cardinality_cols:
+                            st.warning(f"**High Cardinality Detected:** The following categorical columns have many unique values, which might make them difficult to use for grouping: {', '.join(high_cardinality_cols)}.")
+                        else:
+                            st.info("No categorical columns with unusually high numbers of unique values were detected.")
+                    else:
+                        st.info("No categorical columns available to analyze for cardinality.")
 
 
                 st.divider()
