@@ -2,7 +2,7 @@
 
 DataCanvas is a Streamlit app that lets you upload an SQLite database, explore its schema, run custom SQL, and auto-generate profiles, visualizations, and plain‑English insights.
 
-![DataCanvas](https://placehold.co/800x300/F0F2F6/4F8BF9?text=Upload+a+Database+to+Begin&font=inter)
+![DataCanvas](logo.png)
 
 ## Features
 

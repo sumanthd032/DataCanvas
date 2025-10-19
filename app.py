@@ -6,14 +6,12 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# --- Page Configuration ---
 st.set_page_config(
     page_title="DataCanvas: Smart SQLite Visualizer",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# --- Helper Functions ---
 @st.cache_resource
 def get_db_connection(db_path):
     """Establishes a connection to the SQLite database."""
@@ -46,10 +44,8 @@ def get_table__data(_conn, table_name):
         st.error(f"An error occurred while fetching data: {e}")
         return pd.DataFrame()
 
-# --- Main Application ---
 st.title("DataCanvas 🎨: Smart SQLite Visualizer")
 
-# --- Sidebar ---
 with st.sidebar:
     st.header("Upload & Explore")
     uploaded_file = st.file_uploader(
@@ -58,13 +54,11 @@ with st.sidebar:
     )
     st.info("Upload your SQLite database to automatically generate insights and visualizations.")
 
-# --- Main Logic ---
 if uploaded_file is None:
     st.info("👋 Welcome to DataCanvas! Please upload a database file from the sidebar to get started.")
     st.image("https://placehold.co/800x300/F0F2F6/4F8BF9?text=Upload+a+Database+to+Begin&font=inter", use_column_width=True)
 
 else:
-    # Save uploaded file to a temporary location
     temp_dir = "temp_data"
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)
@@ -94,11 +88,8 @@ else:
             if not df_full.empty:
                 st.subheader(f"Preview of `{selected_table}`")
                 st.dataframe(df_full.head(100))
-
-                # --- Tabbed Interface for Analysis ---
                 tab1, tab2, tab3, tab4 = st.tabs(["📊 Data Profile", "💡 Single Column Analysis", "🔗 Bivariate Analysis", "🧠 Automated Insights"])
 
-                # --- Tab 1: Automated Data Profiling ---
                 with tab1:
                     st.markdown(f"### Profile for `{selected_table}` Table")
                     col1, col2 = st.columns(2)
@@ -114,7 +105,6 @@ else:
                     numeric_stats = df_full.describe().transpose()
                     st.dataframe(numeric_stats, width='stretch')
 
-                # --- Tab 2: Univariate Analysis ---
                 with tab2:
                     st.markdown("### Analyze a Single Column's Distribution")
                     all_columns = df_full.columns.tolist()
@@ -146,7 +136,6 @@ else:
                         else:
                             st.info(f"Column `{column_to_visualize}` is categorical but has too many unique values for a bar chart ( > 25).")
 
-                # --- Tab 3: Bivariate Analysis ---
                 with tab3:
                     st.markdown("### Analyze Relationships Between Columns")
                     
@@ -186,18 +175,15 @@ else:
                             st.pyplot(fig)
                             plt.close(fig)
                 
-                # --- Tab 4: Automated Insights ---
                 with tab4:
                     st.markdown("### Key Insights & Observations")
                     
-                    # 1. High Correlation Insight
                     st.subheader("📈 Correlation Insights")
                     if 'corr_matrix' in locals() and not corr_matrix.empty:
-                        # Unstack the matrix to easily find max correlation
                         corr_pairs = corr_matrix.unstack()
-                        # Sort pairs
+
                         sorted_pairs = corr_pairs.sort_values(kind="quicksort", ascending=False)
-                        # Remove self-correlations (where value is 1.0)
+                    
                         non_self_corr = sorted_pairs[sorted_pairs != 1.0]
                         
                         if not non_self_corr.empty:
@@ -214,12 +200,10 @@ else:
                     else:
                         st.info("Correlation analysis requires at least two numerical columns.")
 
-                    # 2. Missing Values Insight
                     st.subheader("🗑️ Missing Data Insights")
                     total_rows = len(df_full)
                     missing_summary = df_full.isnull().sum()
-                    missing_summary = missing_summary[missing_summary > 0] # Filter columns with missing data
-                    
+                    missing_summary = missing_summary[missing_summary > 0] 
                     if not missing_summary.empty:
                         most_missing_col = missing_summary.idxmax()
                         missing_count = missing_summary.max()
@@ -232,13 +216,12 @@ else:
                     else:
                         st.success("🎉 **Great News!** No missing values were found in this table.")
 
-                    # 3. High Cardinality Insight
                     st.subheader("🇇 Cardinality Insights")
                     if 'categorical_cols' in locals() and categorical_cols:
                         high_cardinality_cols = []
                         for col in categorical_cols:
                             unique_count = df_full[col].nunique()
-                            if unique_count > 50: # Threshold for "high" cardinality
+                            if unique_count > 50:
                                 high_cardinality_cols.append(f"`{col}` ({unique_count} unique values)")
                         
                         if high_cardinality_cols:
@@ -251,7 +234,6 @@ else:
 
                 st.divider()
 
-                # --- Custom SQL Query Runner ---
                 with st.expander("🚀 Run a Custom SQL Query"):
                     default_query = f'SELECT * FROM "{selected_table}";'
                     query_text = st.text_area("SQL Query", value=default_query, height=150)
