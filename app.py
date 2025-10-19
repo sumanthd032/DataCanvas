@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+import seaborn as sns 
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -100,9 +101,11 @@ if uploaded_file is not None:
                     st.markdown("#### Numerical Data Statistics")
                     numeric_stats = df_full.describe().transpose()
                     st.dataframe(numeric_stats, width='stretch')
+
+                # --- 3. Smart Visualizations ---
+                st.subheader("💡 Smart Visualizations")
                 
-                # --- 3. Smart Visualizations (Univariate Analysis) ---
-                st.subheader("💡 Smart Visualizations (Univariate Analysis)")
+                # Univariate Analysis
                 with st.expander("Analyze a Single Column's Distribution", expanded=True):
                     all_columns = df_full.columns.tolist()
                     column_to_visualize = st.selectbox(
@@ -115,30 +118,44 @@ if uploaded_file is not None:
                     if column_to_visualize:
                         column_data = df_full[column_to_visualize]
 
-                        # Heuristic to identify column type for visualization
                         if pd.api.types.is_numeric_dtype(column_data):
-                            st.markdown(f"#### Analyzing Numerical Column: `{column_to_visualize}`")
-                            st.markdown("**Distribution (Histogram)**")
+                            st.markdown(f"**Distribution of `{column_to_visualize}` (Histogram)**")
                             fig, ax = plt.subplots()
                             ax.hist(column_data.dropna(), bins='auto', edgecolor='black')
                             ax.set_xlabel(column_to_visualize)
                             ax.set_ylabel("Frequency")
                             st.pyplot(fig)
-                            plt.close(fig) # Important for memory management
+                            plt.close(fig)
 
                         elif pd.api.types.is_object_dtype(column_data) or column_data.nunique() < 25:
-                            st.markdown(f"#### Analyzing Categorical Column: `{column_to_visualize}`")
-                            st.markdown("**Value Counts (Bar Chart)**")
-                            # Show top 25 categories for clarity
+                            st.markdown(f"**Value Counts for `{column_to_visualize}` (Bar Chart)**")
                             value_counts = column_data.value_counts().nlargest(25)
                             st.bar_chart(value_counts)
                         
-                        else: # Handle high-cardinality categorical columns
+                        else:
                             st.info(f"Column `{column_to_visualize}` is categorical but has too many unique values for a bar chart ( > 25).")
+
+                # --- 4. Correlation Analysis (NEW) ---
+                with st.expander("Analyze Relationships Between Columns (Bivariate Analysis)", expanded=True):
+                    st.markdown("#### Correlation Heatmap")
+                    st.markdown("A heatmap shows how strongly numerical columns are related to each other. Values close to 1 (dark red) mean a strong positive correlation, and values close to -1 (dark blue) mean a strong negative correlation.")
+
+                    numeric_cols = df_full.select_dtypes(include=np.number).columns.tolist()
+                    
+                    if len(numeric_cols) < 2:
+                        st.info("Not enough numerical columns (at least 2 required) to generate a correlation heatmap.")
+                    else:
+                        corr_matrix = df_full[numeric_cols].corr()
+                        
+                        fig, ax = plt.subplots(figsize=(10, 8))
+                        sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap="coolwarm", ax=ax)
+                        ax.tick_params(axis='x', rotation=45)
+                        st.pyplot(fig)
+                        plt.close(fig)
 
                 st.divider()
 
-                # --- 4. Custom SQL Query Runner ---
+                # --- 5. Custom SQL Query Runner ---
                 st.subheader("Run a Custom SQL Query")
                 default_query = f'SELECT * FROM "{selected_table}";'
                 query_text = st.text_area("SQL Query", value=default_query, height=150)
