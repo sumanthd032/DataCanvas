@@ -27,7 +27,6 @@ def get_tables(conn):
         st.error(f"Error fetching tables: {e}")
         return []
 
-
 st.title("DataCanvas 🎨: Smart SQLite Visualizer")
 
 st.markdown("""
@@ -61,13 +60,30 @@ if uploaded_file is not None:
             st.sidebar.info(f"You selected the table: **{selected_table}**")
 
             st.subheader(f"Preview of `{selected_table}`")
-            
-            preview_query = f"SELECT * FROM \"{selected_table}\" LIMIT 100;"
+            preview_query = f'SELECT * FROM "{selected_table}" LIMIT 100;'
             try:
                 df_preview = pd.read_sql_query(preview_query, conn)
                 st.dataframe(df_preview)
             except Exception as e:
                 st.error(f"An error occurred while fetching data: {e}")
+
+            st.divider()
+
+            st.subheader("Run a Custom SQL Query")
+            default_query = f'SELECT * FROM "{selected_table}";'
+            query_text = st.text_area("SQL Query", value=default_query, height=150)
+            
+            if st.button("Run Query"):
+                if query_text:
+                    try:
+                        st.info("Executing your query...")
+                        query_result_df = pd.read_sql_query(query_text, conn)
+                        st.success("Query executed successfully!")
+                        st.dataframe(query_result_df)
+                    except Exception as e:
+                        st.error(f"Error executing query: {e}")
+                else:
+                    st.warning("Please enter a query to run.")
 
         conn.close()
     
